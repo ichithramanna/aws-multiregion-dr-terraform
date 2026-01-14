@@ -7,7 +7,17 @@ terraform {
   }
 }
 
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "eu-north-1"
+}
+
 provider "aws" {
-  region  = var.aws_region
-  profile = var.aws_profile
+  region = var.aws_region
+}
+
+provider "aws" {
+  alias  = "use1"
+  region = "us-east-1"
 }
