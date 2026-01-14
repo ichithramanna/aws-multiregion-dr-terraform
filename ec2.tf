@@ -28,6 +28,17 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.ec2_role.name
 }
 
+#AMI Lookup for Amazon Linux instead of hardcoded AMI IDs
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  owners = ["amazon"]
+}
 
 #Launch Template for EC2
 resource "aws_launch_template" "app_lt" {
@@ -53,18 +64,6 @@ resource "aws_launch_template" "app_lt" {
     echo "Backend is running on $(hostname)" > /var/www/html/index.html
   EOF
   )
-}
-
-#AMI Lookup for Amazon Linux instead of hardcoded AMI IDs
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
-  }
-
-  owners = ["amazon"]
 }
 
 #Auto Scaling Group
