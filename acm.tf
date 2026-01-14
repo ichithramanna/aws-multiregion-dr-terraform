@@ -1,8 +1,3 @@
-provider "aws" {
-  alias  = "use1"
-  region = "us-east-1"
-  profile = var.aws_profile
-}
 data "aws_acm_certificate" "frontend" {
   provider    = aws.use1
   domain      = "ichith.it"
