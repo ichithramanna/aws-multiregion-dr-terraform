@@ -22,14 +22,16 @@ This repository is designed for **portfolio use, interviews, and learning**.
 ARCHITECTURE (LOGICAL VIEW)
 --------------------------
 User
- ├── app.<domain>  → CloudFront → S3 (Static Frontend)
- └── api.<domain>  → Route53 → Application Load Balancer (HTTP/HTTPS)
-                              ↓
-                        Target Group (Health Checks)
-                              ↓
-                    EC2 Auto Scaling Group
-                              ↓
-                    Dockerized Backend (Flask/Gunicorn)
+├── app.<domain>
+│ └── CloudFront
+│ └── S3 (Static Frontend)
+│
+└── api.<domain>
+└── Route 53
+└── Application Load Balancer (HTTP → HTTPS)
+└── Target Group (Health Checks)
+└── EC2 Auto Scaling Group
+└── Dockerized Backend (Flask + Gunicorn)
 
 
 KEY FEATURES
