@@ -1,55 +1,48 @@
-THREE-TIER AWS ARCHITECTURE WITH TERRAFORM (DOCKERIZED BACKEND)
+# THREE-TIER AWS ARCHITECTURE WITH TERRAFORM (DOCKERIZED BACKEND)
 
-==================================================
-
-OVERVIEW
---------
-This project implements a **production-style three-tier AWS architecture**
-using **Terraform**, with a **Dockerized backend application** deployed on
-EC2 instances managed by an **Auto Scaling Group (ASG)** behind an
-**Application Load Balancer (ALB)**.
+## 📌 OVERVIEW
+This project implements a **production-style three-tier AWS architecture** using **Terraform**, with a **Dockerized backend application** deployed on EC2 instances managed by an **Auto Scaling Group (ASG)** behind an **Application Load Balancer (ALB)**.
 
 The goal of this project is to demonstrate:
-- Real-world AWS architecture design
-- Infrastructure as Code (IaC) using Terraform
-- Containerized backend deployment
-- Load balancing, auto scaling, and health checks
-- CI validation using GitHub Actions
+* Real-world AWS architecture design
+* Infrastructure as Code (IaC) using Terraform
+* Containerized backend deployment
+* Load balancing, auto scaling, and health checks
+* CI validation using GitHub Actions
 
-This repository is designed for **portfolio use, interviews, and learning**.
+---
 
-
-ARCHITECTURE (LOGICAL VIEW)
---------------------------
+## 🏗 ARCHITECTURE (LOGICAL VIEW)
+```text
 User
-├── app.<domain>
-│ └── CloudFront
-│ └── S3 (Static Frontend)
-│
-└── api.<domain>
-└── Route 53
-└── Application Load Balancer (HTTP → HTTPS)
-└── Target Group (Health Checks)
-└── EC2 Auto Scaling Group
-└── Dockerized Backend (Flask + Gunicorn)
+ ├── app.<domain>
+ │    └── CloudFront
+ │         └── S3 (Static Frontend)
+ │
+ └── api.<domain>
+      └── Route 53
+           └── Application Load Balancer (HTTP → HTTPS)
+                └── Target Group (Health Checks)
+                     └── EC2 Auto Scaling Group
+                          └── Dockerized Backend (Flask + Gunicorn)
 
 
-KEY FEATURES
+🚀 KEY FEATURES
 ------------
-FRONTEND
+💻 FRONTENDD
 - Static website hosted on Amazon S3
 - Delivered via Amazon CloudFront
 - HTTPS using ACM (us-east-1 for CloudFront)
 - Secure S3 access using Origin Access Control (OAC)
 
-BACKEND
+⚙️ BACKEND
 - Dockerized backend application (Flask + Gunicorn)
 - Application Load Balancer with health checks
 - EC2 Auto Scaling Group for resilience
 - Backend exposed only through ALB (no public EC2 access)
 - IAM Role attached to EC2 for AWS access (ECR, SSM, future CI/CD)
 
-NETWORKING
+🌐 NETWORKING
 - Custom VPC with CIDR isolation
 - Public subnets for ALB
 - Private subnets for backend EC2 instances
@@ -68,7 +61,7 @@ INFRASTRUCTURE AS CODE
 - Designed to be reproducible and auditable
 
 
-PROJECT STRUCTURE
+📂 PROJECT STRUCTURE
 -----------------
 three-tier-aws-terraform/
 ├── providers.tf
@@ -87,7 +80,6 @@ three-tier-aws-terraform/
 ├── route53.tf
 ├── acm.tf
 ├── terraform-ci.yml
-├── README.txt
 └── backend/
     ├── Dockerfile
     └── app.py
@@ -117,7 +109,7 @@ This ensures infrastructure changes are syntactically
 correct before deployment.
 
 
-DEPLOYMENT
+🛠 DEPLOYMENT
 ----------
 Prerequisites:
 - AWS account
