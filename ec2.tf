@@ -15,6 +15,12 @@ resource "aws_iam_role" "ec2_role" {
     ]
   })
 }
+#Attach ECR permissions to EC2 role
+resource "aws_iam_role_policy_attachment" "ecr_read" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
 
 #Attach SSM permissions for accesing Ec2 using SSM
 resource "aws_iam_role_policy_attachment" "ssm_attach" {
@@ -56,12 +62,36 @@ resource "aws_launch_template" "app_lt" {
   }
 
   user_data = base64encode(<<-EOF
-    #!/bin/bash
-    yum update -y
-    yum install -y httpd
-    systemctl start httpd
-    systemctl enable httpd
-    echo "Backend is running on $(hostname)" > /var/www/html/index.html
+  #!/bin/bash
+  set -e
+
+  # Update system
+  yum update -y
+
+  # Install Docker
+  amazon-linux-extras install docker -y
+  systemctl start docker
+  systemctl enable docker
+  usermod -aG docker ec2-user
+
+  # Install AWS CLI v2 (needed for ECR login)
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  ./aws/install
+
+  # Login to ECR
+  aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS \
+  --password-stdin 002506421910.dkr.ecr.us-east-1.amazonaws.com
+
+  # Pull backend image
+  docker pull 002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
+
+  # Run container
+  docker run -d \
+  --restart always \
+  -p 80:80 \
+  002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
   EOF
   )
 }
@@ -87,7 +117,7 @@ resource "aws_autoscaling_group" "app_asg" {
   }
 
   health_check_type         = "ELB"
-  health_check_grace_period = 60
+  health_check_grace_period = 240
 
   tag {
     key                 = "Name"
