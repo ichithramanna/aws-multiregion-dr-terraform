@@ -1,2 +1,1 @@
-aws_region  = "eu-north-1"
-
+db_password = "YourSecurePassword123!"

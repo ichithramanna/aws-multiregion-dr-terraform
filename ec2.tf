@@ -65,32 +65,27 @@ resource "aws_launch_template" "app_lt" {
   #!/bin/bash
   set -e
 
-  # Update system
   yum update -y
-
-  # Install Docker
   amazon-linux-extras install docker -y
   systemctl start docker
   systemctl enable docker
   usermod -aG docker ec2-user
 
-  # Install AWS CLI v2 (needed for ECR login)
   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
   unzip awscliv2.zip
   ./aws/install
 
-  # Login to ECR
   aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS \
   --password-stdin 002506421910.dkr.ecr.us-east-1.amazonaws.com
 
-  # Pull backend image
   docker pull 002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
 
-  # Run container
   docker run -d \
   --restart always \
   -p 80:80 \
+  -e DB_HOST="${aws_rds_cluster.primary.endpoint}" \
+  -e DB_PASSWORD="${var.db_password}" \
   002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
   EOF
   )
