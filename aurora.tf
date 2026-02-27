@@ -46,7 +46,7 @@ resource "aws_rds_cluster" "primary" {
 resource "aws_rds_cluster_instance" "primary" {
   identifier           = "three-tier-primary-instance"
   cluster_identifier   = aws_rds_cluster.primary.id
-  instance_class       = "db.r6g.large"  
+  instance_class       = "db.r6g.large"   
   engine               = aws_rds_cluster.primary.engine
   engine_version       = aws_rds_cluster.primary.engine_version
   db_subnet_group_name = aws_db_subnet_group.primary.name

@@ -32,6 +32,33 @@ resource "aws_iam_role" "dr_ec2_role" {
     ]
   })
 }
+# SQS permission — DR EC2 needs to send/receive/delete from write buffer
+resource "aws_iam_role_policy" "dr_sqs_access" {
+  name = "dr-sqs-access-policy"
+  role = aws_iam_role.dr_ec2_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+      Resource = aws_sqs_queue.dr_write_buffer.arn
+    }]
+  })
+}
+
+# RDS permission — DR EC2 app thread calls describe_global_clusters
+resource "aws_iam_role_policy" "dr_rds_describe" {
+  name = "dr-rds-describe-policy"
+  role = aws_iam_role.dr_ec2_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["rds:DescribeGlobalClusters"]
+      Resource = "*"
+    }]
+  })
+}
 
 # ECR read access — DR EC2 pulls from us-east-1 ECR cross-region
 resource "aws_iam_role_policy_attachment" "dr_ecr_read" {
@@ -39,7 +66,7 @@ resource "aws_iam_role_policy_attachment" "dr_ecr_read" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# SSM access — so you can SSH into DR EC2 without key pairs
+# SSM access —  SSH into DR EC2 without key pairs
 resource "aws_iam_role_policy_attachment" "dr_ssm_attach" {
   role       = aws_iam_role.dr_ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -95,6 +122,10 @@ resource "aws_launch_template" "dr_app_lt" {
   -p 80:80 \
   -e DB_HOST="${aws_rds_cluster.dr.endpoint}" \
   -e DB_PASSWORD="${var.db_password}" \
+  -e SQS_QUEUE_URL="${aws_sqs_queue.dr_write_buffer.url}" \
+  -e GLOBAL_CLUSTER_ID="three-tier-global-db" \
+  -e TARGET_CLUSTER_ARN="${aws_rds_cluster.dr.arn}" \
+  -e AWS_REGION="us-west-2" \
   002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
   EOF
   )

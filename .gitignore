@@ -6,3 +6,6 @@
 *.tfplan
 plan.txt
 dr-plan.tfplan
+*.zip
+*.tfstate*
+.terraform/
