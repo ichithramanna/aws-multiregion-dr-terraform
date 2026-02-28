@@ -82,7 +82,7 @@ resource "aws_iam_instance_profile" "dr_ec2_profile" {
 resource "aws_launch_template" "dr_app_lt" {
   provider      = aws.dr
   name_prefix   = "dr-app-lt-"
-  image_id      = data.aws_ami.amazon_linux_dr.id  # us-west-2 AMI
+  image_id      = data.aws_ami.amazon_linux_dr.id # us-west-2 AMI
   instance_type = "t3.micro"
 
   iam_instance_profile {

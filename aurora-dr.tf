@@ -14,16 +14,16 @@ resource "aws_rds_cluster" "dr" {
   db_subnet_group_name      = aws_db_subnet_group.dr.name
   vpc_security_group_ids    = [aws_security_group.dr_rds_sg.id]
   skip_final_snapshot       = true
-  tags       = { Name = "dr-aurora-cluster" }
-  depends_on = [aws_rds_cluster.primary]
+  tags                      = { Name = "dr-aurora-cluster" }
+  depends_on                = [aws_rds_cluster.primary]
 }
 
 resource "aws_rds_cluster_instance" "dr" {
   provider             = aws.dr
   identifier           = "three-tier-dr-instance"
   cluster_identifier   = aws_rds_cluster.dr.id
-  instance_class       = "db.r6g.large" 
+  instance_class       = "db.r6g.large"
   engine               = aws_rds_cluster.dr.engine
   db_subnet_group_name = aws_db_subnet_group.dr.name
-  tags = { Name = "dr-aurora-instance" }
+  tags                 = { Name = "dr-aurora-instance" }
 }

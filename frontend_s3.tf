@@ -34,14 +34,14 @@ EOF
 
 #adding policy for Only this CloudFront distribution read
 resource "aws_s3_bucket_policy" "frontend" {
-  
+
   bucket = aws_s3_bucket.frontend.id
   policy = jsonencode({
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Service = "cloudfront.amazonaws.com" }
-      Action   = "s3:GetObject"
-      Resource = "${aws_s3_bucket.frontend.arn}/*"
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.frontend.arn}/*"
       Condition = {
         StringEquals = {
           "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn

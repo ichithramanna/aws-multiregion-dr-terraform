@@ -43,8 +43,8 @@ resource "aws_route53_record" "dr_backend_cert_validation" {
 # Waits until ACM confirms DNS validation is complete
 # Uses same Route 53 zone as primary — no extra DNS config needed
 resource "aws_acm_certificate_validation" "dr_backend" {
-  provider                = aws.dr
-  certificate_arn         = aws_acm_certificate.dr_backend.arn
+  provider        = aws.dr
+  certificate_arn = aws_acm_certificate.dr_backend.arn
   validation_record_fqdns = [
     for r in aws_route53_record.dr_backend_cert_validation : r.fqdn
   ]

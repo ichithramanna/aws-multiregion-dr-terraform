@@ -11,7 +11,7 @@
 # SQS latency and keeps IAM permissions simple.
 
 resource "aws_sqs_queue" "dr_write_buffer" {
-  provider = aws.dr        # us-west-2 — same region as DR EC2
+  provider = aws.dr # us-west-2 — same region as DR EC2
   name     = "dr-write-buffer"
 
   # visibility_timeout must be LONGER than your drain retry window
