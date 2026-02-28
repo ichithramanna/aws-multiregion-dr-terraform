@@ -34,3 +34,6 @@ resource "aws_route53_record" "backend" {
   ttl     = 60
   records = [aws_globalaccelerator_accelerator.main.dns_name]
 }
+
+
+

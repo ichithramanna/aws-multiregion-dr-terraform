@@ -1,4 +1,6 @@
-#create a HTTPCode_Target_5XX_Count alarm
+# ─── General Monitoring Alarms ───────────────────────────────────
+
+# HTTPCode_Target_5XX_Count alarm
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_alarm" {
   alarm_name          = "alb-5xx-errors"
   comparison_operator = "GreaterThanThreshold"
@@ -17,8 +19,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_alarm" {
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
-# create a TargetResponseTime alarm
-
+# TargetResponseTime alarm
 resource "aws_cloudwatch_metric_alarm" "alb_latency_alarm" {
   alarm_name          = "alb-high-latency"
   comparison_operator = "GreaterThanThreshold"
@@ -38,7 +39,6 @@ resource "aws_cloudwatch_metric_alarm" "alb_latency_alarm" {
 }
 
 # EC2 CPU Alarm
-
 resource "aws_cloudwatch_metric_alarm" "asg_high_cpu" {
   alarm_name          = "asg-high-cpu"
   comparison_operator = "GreaterThanThreshold"
@@ -57,3 +57,52 @@ resource "aws_cloudwatch_metric_alarm" "asg_high_cpu" {
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
+
+# ==================== DISASTER RECOVERY ALARMS ====================
+
+# ─── Alarm 1: Detects FAILURE (5XX errors) ───────────────────────
+# Fires when: Primary ALB ELB-level returns 10+ errors in 60s
+# Action: alarm_actions → SNS aurora_failover → Lambda promotes DR
+resource "aws_cloudwatch_metric_alarm" "primary_5xx_errors" {
+  alarm_name          = "primary-alb-5xx-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "HTTPCode_ELB_5XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 10
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Triggers DB failover when ALB returns 5XX errors (backend failure)"
+
+  dimensions = {
+    LoadBalancer = aws_lb.app_alb.arn_suffix
+  }
+
+  alarm_actions = [aws_sns_topic.aurora_failover.arn]
+  tags          = { Name = "primary-5xx-alarm" }
+}
+
+# ─── Alarm 2: Confirms RECOVERY (healthy targets exist) ──────────
+# Fires OK when: Primary ALB has 1+ healthy targets for 2 minutes
+# Action: ok_actions → SNS aurora_failback → Lambda promotes primary back
+resource "aws_cloudwatch_metric_alarm" "primary_recovered" {
+  alarm_name          = "primary-alb-has-healthy-targets"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  metric_name         = "HealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 1
+  treat_missing_data  = "breaching"
+  alarm_description   = "Triggers DB failback when primary has healthy targets again"
+
+  dimensions = {
+    LoadBalancer = aws_lb.app_alb.arn_suffix
+    TargetGroup  = aws_lb_target_group.app_tg.arn_suffix
+  }
+
+  ok_actions = [aws_sns_topic.aurora_failback.arn]
+  tags       = { Name = "primary-recovered-alarm" }
+}

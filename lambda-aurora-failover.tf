@@ -84,7 +84,7 @@ resource "aws_lambda_function" "aurora_failover" {
   environment {
     variables = {
       GLOBAL_CLUSTER_ID     = aws_rds_global_cluster.main.id
-      TARGET_DB_CLUSTER_ARN = aws_rds_cluster.dr.arn   # promote DR
+      TARGET_DB_CLUSTER_ARN = aws_rds_cluster.dr.arn
     }
   }
   tags = { Name = "aurora-failover-lambda" }
@@ -122,7 +122,6 @@ def handler(event, context):
         logger.info("Primary already writer — skipping")
         return {"status": "skipped", "reason": "already primary"}
 
-    # Guard: primary cluster must be available before failback
     primary_id = TARGET_DB_CLUSTER.split(":")[-1]
     info = client.describe_db_clusters(DBClusterIdentifier=primary_id)
     status = info["DBClusters"][0]["Status"]
@@ -151,13 +150,13 @@ resource "aws_lambda_function" "aurora_failback" {
   environment {
     variables = {
       GLOBAL_CLUSTER_ID     = aws_rds_global_cluster.main.id
-      TARGET_DB_CLUSTER_ARN = aws_rds_cluster.primary.arn  # promote PRIMARY back
+      TARGET_DB_CLUSTER_ARN = aws_rds_cluster.primary.arn
     }
   }
   tags = { Name = "aurora-failback-lambda" }
 }
 
-# ─── SNS: Failover (alarm fires this) ────────────────────────────
+# ─── SNS: Failover ───────────────────────────────────────────────
 resource "aws_sns_topic" "aurora_failover" {
   name = "aurora-failover-trigger"
 }
@@ -174,7 +173,7 @@ resource "aws_lambda_permission" "aurora_failover_sns" {
   source_arn    = aws_sns_topic.aurora_failover.arn
 }
 
-# ─── SNS: Failback (alarm OK fires this) ─────────────────────────
+# ─── SNS: Failback ───────────────────────────────────────────────
 resource "aws_sns_topic" "aurora_failback" {
   name = "aurora-failback-trigger"
 }
@@ -189,28 +188,4 @@ resource "aws_lambda_permission" "aurora_failback_sns" {
   function_name = aws_lambda_function.aurora_failback.function_name
   principal     = "sns.amazonaws.com"
   source_arn    = aws_sns_topic.aurora_failback.arn
-}
-
-# ─── CloudWatch Alarm: Primary ALB health ────────────────────────
-# period=10, evaluation_periods=3 → fires after 30s
-# alarm_actions = failover SNS (primary dead → promote DR)
-# ok_actions    = failback SNS (primary recovered → promote back)
-resource "aws_cloudwatch_metric_alarm" "primary_alb_db_failover" {
-  alarm_name          = "primary-alb-unhealthy-trigger-db-failover"
-  comparison_operator = "LessThanOrEqualToThreshold"
-  evaluation_periods  = 3
-  metric_name         = "HealthyHostCount"
-  namespace           = "AWS/ApplicationELB"
-  period              = 10
-  statistic           = "Minimum"
-  threshold           = 0
-
-  dimensions = {
-    LoadBalancer = aws_lb.app_alb.arn_suffix
-    TargetGroup  = aws_lb_target_group.app_tg.arn_suffix
-  }
-
-  alarm_actions = [aws_sns_topic.aurora_failover.arn]
-  ok_actions    = [aws_sns_topic.aurora_failback.arn]
-  tags          = { Name = "primary-alb-db-failover-alarm" }
 }

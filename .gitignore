@@ -9,3 +9,4 @@ dr-plan.tfplan
 *.zip
 *.tfstate*
 .terraform/
+terraform-state-backup-20260228-015423.json

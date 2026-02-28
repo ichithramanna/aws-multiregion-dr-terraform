@@ -28,6 +28,20 @@ resource "aws_iam_role_policy_attachment" "ssm_attach" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# SQS permission — primary EC2 needs to queue writes during failback
+resource "aws_iam_role_policy" "primary_sqs_access" {
+  name = "primary-sqs-access-policy"
+  role = aws_iam_role.ec2_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+      Resource = aws_sqs_queue.dr_write_buffer.arn
+    }]
+  })
+}
+
 #Instance profile because EC2 cannot use roles directly
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "ec2-app-profile"
@@ -81,11 +95,14 @@ resource "aws_launch_template" "app_lt" {
 
   docker pull 002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
 
-  docker run -d \
+    docker run -d \
   --restart always \
   -p 80:80 \
   -e DB_HOST="${aws_rds_cluster.primary.endpoint}" \
   -e DB_PASSWORD="${var.db_password}" \
+  -e SQS_QUEUE_URL="${aws_sqs_queue.dr_write_buffer.url}" \
+  -e GLOBAL_CLUSTER_ID="three-tier-global-db" \
+  -e AWS_REGION="us-east-1" \
   002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
   EOF
   )
