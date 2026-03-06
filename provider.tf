@@ -9,17 +9,17 @@ terraform {
 
 provider "aws" {
   region  = var.aws_region
-  profile = "three-tier"
+  profile = "default" 
 }
 
 provider "aws" {
   alias   = "use1"
   region  = "us-east-1"
-  profile = "three-tier"
+  profile = "default"
 }
 
 provider "aws" {
   alias   = "dr"
   region  = "us-west-2"
-  profile = "three-tier"
+  profile = "default"
 }

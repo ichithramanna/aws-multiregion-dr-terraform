@@ -102,6 +102,7 @@ resource "aws_launch_template" "app_lt" {
   -e DB_PASSWORD="${var.db_password}" \
   -e SQS_QUEUE_URL="${aws_sqs_queue.dr_write_buffer.url}" \
   -e GLOBAL_CLUSTER_ID="three-tier-global-db" \
+  -e TARGET_CLUSTER_ARN="${aws_rds_cluster.dr.arn}" \
   -e AWS_REGION="us-east-1" \
   002506421910.dkr.ecr.us-east-1.amazonaws.com/backend-app:latest
   EOF

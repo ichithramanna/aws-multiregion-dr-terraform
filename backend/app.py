@@ -132,11 +132,16 @@ def write():
         conn.close()
         return jsonify({"status": "success", "message": f"Visit recorded from {r}", "queued": False})
 
-    except pymysql.err.InternalError as e:
+    except (pymysql.err.InternalError, pymysql.err.OperationalError) as e:
         if conn:
             try: conn.close()
             except: pass
-        if e.args[0] == READ_ONLY_ERRNO and sqs and SQS_QUEUE_URL:
+        
+        # Debug logging to see what errno we're actually getting
+        print(f"[DEBUG] InternalError: args={e.args}, errno={e.args[0] if e.args else 'none'}")
+        
+        # Check if it's read-only error (1836)
+        if len(e.args) > 0 and e.args[0] == READ_ONLY_ERRNO and sqs and SQS_QUEUE_URL:
             # Aurora not yet promoted — buffer in SQS
             sqs.send_message(
                 QueueUrl=SQS_QUEUE_URL,
@@ -147,6 +152,7 @@ def write():
                 "message": "Write queued — will persist once DR Aurora is promoted",
                 "queued": True
             })
+        
         return jsonify({"status": "error", "message": str(e)}), 500
 
     except Exception as e:
@@ -154,6 +160,7 @@ def write():
             try: conn.close()
             except: pass
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route("/read")
 def read():

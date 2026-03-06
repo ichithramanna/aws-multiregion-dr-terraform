@@ -82,27 +82,3 @@ resource "aws_cloudwatch_metric_alarm" "primary_5xx_errors" {
   alarm_actions = [aws_sns_topic.aurora_failover.arn]
   tags          = { Name = "primary-5xx-alarm" }
 }
-
-# ─── Alarm 2: Confirms RECOVERY (healthy targets exist) ──────────
-# Fires OK when: Primary ALB has 1+ healthy targets for 2 minutes
-# Action: ok_actions → SNS aurora_failback → Lambda promotes primary back
-resource "aws_cloudwatch_metric_alarm" "primary_recovered" {
-  alarm_name          = "primary-alb-has-healthy-targets"
-  comparison_operator = "GreaterThanOrEqualToThreshold"
-  evaluation_periods  = 2
-  metric_name         = "HealthyHostCount"
-  namespace           = "AWS/ApplicationELB"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 1
-  treat_missing_data  = "breaching"
-  alarm_description   = "Triggers DB failback when primary has healthy targets again"
-
-  dimensions = {
-    LoadBalancer = aws_lb.app_alb.arn_suffix
-    TargetGroup  = aws_lb_target_group.app_tg.arn_suffix
-  }
-
-  ok_actions = [aws_sns_topic.aurora_failback.arn]
-  tags       = { Name = "primary-recovered-alarm" }
-}
