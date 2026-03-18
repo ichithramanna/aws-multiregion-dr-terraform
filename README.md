@@ -1,165 +1,156 @@
-# THREE-TIER AWS ARCHITECTURE WITH TERRAFORM (DOCKERIZED BACKEND)
+# Three-Tier AWS Multi-Region Disaster Recovery
 
-## 📌 OVERVIEW
-This project implements a **production-style three-tier AWS architecture** using **Terraform**, with a **Dockerized backend application** deployed on EC2 instances managed by an **Auto Scaling Group (ASG)** behind an **Application Load Balancer (ALB)**.
+A production-style three-tier AWS architecture with **automated multi-region disaster recovery**, built entirely with Terraform.
 
-The goal of this project is to demonstrate:
-* Real-world AWS architecture design
-* Infrastructure as Code (IaC) using Terraform
-* Containerized backend deployment
-* Load balancing, auto scaling, and health checks
-* CI validation using GitHub Actions
+> ⚠️ **Infrastructure is destroyed after demo to avoid AWS costs.**  
+> To run this yourself, follow the deployment steps below.
 
 ---
 
-## 🏗 ARCHITECTURE (LOGICAL VIEW)
+## Architecture
+
 ```text
-User
- ├── app.<domain>
- │    └── CloudFront
- │         └── S3 (Static Frontend)
- │
- └── api.<domain>
-      └── Route 53
-           └── Application Load Balancer (HTTP → HTTPS)
-                └── Target Group (Health Checks)
-                     └── EC2 Auto Scaling Group
-                          └── Dockerized Backend (Flask + Gunicorn)
+                     ┌─────────────────────────────────────┐
+                     │           GLOBAL LAYER               │
+                     │  Route 53 → CloudFront (app.*)       │
+                     │  Route 53 → Global Accelerator (api.*)│
+                     └────────────┬────────────────────────┘
+                                  │
+           ┌──────────────────────┴──────────────────────┐
+           │                                             │
+  PRIMARY (us-east-1)                          DR (us-west-2)
+           │                                             │
+S3 + CloudFront (Frontend)         S3 + CloudFront (standby)
+           │                                             │
+ALB → ASG → EC2 (Flask)              ALB → ASG → EC2 (Flask)
+           │                                             │
+Aurora MySQL (Writer)  ←── Global Replication ──→  Aurora MySQL (Reader)
+           │
+    SQS (write buffer during DR promotion)
+           │
+    Lambda (automated failover + failback)
+           │
+    CloudWatch Alarms (trigger on 5XX errors)
+```
 
+---
 
-🚀 KEY FEATURES
-------------
-💻 FRONTENDD
-- Static website hosted on Amazon S3
-- Delivered via Amazon CloudFront
-- HTTPS using ACM (us-east-1 for CloudFront)
-- Secure S3 access using Origin Access Control (OAC)
+## Key Features
 
-⚙️ BACKEND
-- Dockerized backend application (Flask + Gunicorn)
-- Application Load Balancer with health checks
-- EC2 Auto Scaling Group for resilience
-- Backend exposed only through ALB (no public EC2 access)
-- IAM Role attached to EC2 for AWS access (ECR, SSM, future CI/CD)
+### Frontend
+- Static HTML/JS hosted on S3, delivered via CloudFront
+- HTTPS with ACM certificate, secure S3 access via OAC
+- Live region display, Aurora write/read demo buttons
 
-🌐 NETWORKING
-- Custom VPC with CIDR isolation
-- Public subnets for ALB
-- Private subnets for backend EC2 instances
-- Internet Gateway and NAT Gateway
+### Backend
+- Dockerized Flask + Gunicorn app on EC2 (Auto Scaling Group)
+- ALB with HTTPS listener, HTTP→HTTPS redirect
+- Endpoints: `/health`, `/region`, `/write`, `/read`
+- CORS enabled for frontend domain
 
-DNS & SECURITY
-- Route 53 for DNS management
-- Separate subdomains for frontend and backend
-- Least-privilege Security Groups
-- No SSH access (SSM-ready)
+### Database
+- Aurora Global Database (MySQL 8.0) spanning us-east-1 and us-west-2
+- Primary writer in us-east-1, read replica in us-west-2
+- Sub-1-second replication lag at storage layer
 
-INFRASTRUCTURE AS CODE
-- Fully managed using Terraform
-- Modular, readable resource layout
-- Multi-region support for ACM and CloudFront
-- Designed to be reproducible and auditable
+### Disaster Recovery — Warm Standby (Active-Passive)
+- **RPO:** < 1 second | **RTO:** 1–2 minutes
+- **Global Accelerator** routes traffic to healthiest region using static anycast IPs
+- **CloudWatch** detects primary ALB 5XX errors → triggers failover chain
+- **Lambda** automates Aurora Global Database cluster promotion
+- **SQS** buffers write requests during Aurora promotion window (~60–90 seconds)
+- **Failback** is manual (deliberate) — automated failback available as future improvement
 
+---
 
-📂 PROJECT STRUCTURE
------------------
+## File Structure
+
+```
 three-tier-aws-terraform/
-├── providers.tf
+├── backend/
+│   ├── app.py               # Flask app (region, health, write, read endpoints)
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── docs/
+│   └── dr-strategy.md       # Full DR strategy document
+│
+├── automation-cloudwatch.tf      # CloudWatch alarms for DR trigger
+├── automation-lambda-failover.tf # Lambda for Aurora failover/failback
+├── automation-sns.tf             # SNS alert topics
+├── automation-sqs.tf             # SQS write buffer queue
+│
+├── compute-primary-alb.tf        # ALB (us-east-1)
+├── compute-primary-ec2.tf        # Launch template + ASG (us-east-1)
+├── compute-dr-alb.tf             # ALB (us-west-2)
+├── compute-dr-asg.tf             # Launch template + ASG (us-west-2)
+│
+├── database-primary-aurora.tf    # Aurora cluster (us-east-1)
+├── database-dr-aurora.tf         # Aurora replica cluster (us-west-2)
+│
+├── frontend-s3.tf                # S3 bucket + index.html
+├── frontend-cloudfront.tf        # CloudFront distribution
+│
+├── global-accelerator.tf         # Global Accelerator + endpoint groups
+├── global-route53.tf             # DNS records
+├── global-acm-primary.tf         # ACM cert (us-east-1)
+├── global-acm-dr.tf              # ACM cert (us-west-2)
+│
+├── network-primary-vpc.tf        # VPC (us-east-1)
+├── network-primary-subnets.tf
+├── network-primary-igw.tf
+├── network-primary-nat.tf
+├── network-primary-routes.tf
+├── network-primary-sg.tf
+├── network-dr-vpc.tf             # VPC (us-west-2)
+├── network-dr-subnets.tf
+├── network-dr-routing.tf
+├── network-dr-sg.tf
+│
+├── provider.tf
 ├── variables.tf
 ├── outputs.tf
-├── vpc.tf
-├── subnets.tf
-├── igw.tf
-├── nat.tf
-├── security-groups.tf
-├── alb.tf
-├── ec2.tf
-├── asg.tf
-├── frontend_s3.tf
-├── cloudfront.tf
-├── route53.tf
-├── acm.tf
-├── terraform-ci.yml
-└── backend/
-    ├── Dockerfile
-    └── app.py
+└── terraform.tfvars
+```
 
+---
 
-BACKEND (DOCKER)
-----------------
-- Backend application is built as a Docker image
-- Image is pushed to Amazon ECR
-- EC2 instances pull and run the image
-- Container listens on port 80
-- ALB health checks expect HTTP 200 responses
+## Deployment
 
-This setup mirrors real-world containerized workloads
-without requiring ECS/Fargate.
+**Prerequisites:** AWS CLI configured, Terraform installed, Docker image pushed to ECR.
 
-
-CI / GITHUB ACTIONS
--------------------
-A Terraform CI pipeline runs on every push and PR:
-
-- terraform init
-- terraform validate
-- terraform plan
-
-This ensures infrastructure changes are syntactically
-correct before deployment.
-
-
-🛠 DEPLOYMENT
-----------
-Prerequisites:
-- AWS account
-- AWS CLI configured
-- Terraform installed
-
-Commands:
+```bash
 terraform init
 terraform validate
 terraform plan
 terraform apply
+```
 
-After deployment:
-- Frontend available via CloudFront domain
-- Backend available via ALB / API subdomain
-
-
-COST NOTES
-----------
-- NAT Gateway is the highest recurring cost
-- ASG runs minimum 1 instance
-- No RDS included by default to reduce costs
+After apply:
+- Frontend available at your CloudFront domain
+- Backend health: `https://<your-api-domain>/health`
+- Backend region: `https://<your-api-domain>/region`
 
 
-DESIGN DECISIONS
-----------------
-- Docker on EC2 instead of ECS:
-  Keeps architecture simple while demonstrating containers
+---
 
-- No database:
-  Focuses on infrastructure fundamentals and avoids cost
+## DR Failover Flow
 
-- ALB + ASG:
-  Demonstrates real production traffic flow and scaling
+1. Primary ALB begins returning 5XX errors
+2. CloudWatch alarm fires → SNS → Lambda
+3. Lambda calls `rds:FailoverGlobalCluster()` — DR cluster promoted to writer
+4. Global Accelerator detects unhealthy primary → shifts 100% traffic to DR ALB
+5. SQS drains buffered writes into newly promoted Aurora writer
+6. **System fully operational in DR region within ~1–2 minutes**
 
+Full strategy document: [docs/dr-strategy.md](docs/dr-strategy.md)
 
-FUTURE IMPROVEMENTS
--------------------
-- CI/CD deployment pipeline
-- ECS or Fargate migration
-- RDS or DynamoDB integration
-- AWS WAF
-- CloudWatch alarms and dashboards
+---
 
+## Author
 
-AUTHOR
-------
-Built by Ichith
+Built by Ichith — [github.com/ichithramanna](https://github.com/ichithramanna)
 
+## License
 
-LICENSE
--------
-MIT License
+MIT
