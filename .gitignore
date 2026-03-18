@@ -10,3 +10,5 @@ dr-plan.tfplan
 *.tfstate*
 .terraform/
 terraform-state-backup-20260228-015423.json
+tfplan
+*.tfplan
