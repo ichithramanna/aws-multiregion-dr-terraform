@@ -9,4 +9,5 @@ COPY app.py .
 
 EXPOSE 80
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "1", "--timeout", "120", "app:app"]
+

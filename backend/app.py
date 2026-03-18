@@ -1,8 +1,10 @@
 from flask import Flask, jsonify
+from flask_cors import CORS  
 import pymysql, os, time, threading, queue, boto3, json
 import urllib.request
 
 app = Flask(__name__)
+CORS(app, origins=["https://app.ichith.it"])  
 
 READ_ONLY_ERRNO   = 1836
 SQS_QUEUE_URL     = os.environ.get("SQS_QUEUE_URL", "")
@@ -177,6 +179,26 @@ def read():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+@app.route("/read-all")
+def read_all():
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, region, ts FROM visits ORDER BY ts DESC")
+        rows = cursor.fetchall()
+        conn.close()
+        return jsonify({
+            "serving_from": get_region(),
+            "total": len(rows),
+            "visits": [{"id": r[0], "region": r[1], "ts": str(r[2])} for r in rows]
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=80)
+
+
+
+
