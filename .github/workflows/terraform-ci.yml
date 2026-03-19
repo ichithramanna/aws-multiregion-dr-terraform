@@ -85,8 +85,19 @@ jobs:
         with:
           terraform_version: 1.7.0
 
+      - name: Override backend to local for CI
+        run: |
+          cat > /tmp/backend_override.tf << 'EOF'
+          terraform {
+            backend "local" {
+              path = "/tmp/terraform.tfstate"
+            }
+          }
+          EOF
+          cp /tmp/backend_override.tf backend_override.tf
+
       - name: Terraform Init
-        run: terraform init -backend=false -reconfigure -input=false
+        run: terraform init -reconfigure -input=false
 
       - name: Terraform Plan
         id: plan
