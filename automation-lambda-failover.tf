@@ -118,7 +118,7 @@ resource "aws_lambda_function" "aurora_failover" {
   filename         = data.archive_file.aurora_failover.output_path
   source_code_hash = data.archive_file.aurora_failover.output_base64sha256
   timeout          = 60
-  
+
   environment {
     variables = {
       GLOBAL_CLUSTER_ID          = aws_rds_global_cluster.main.id
@@ -129,7 +129,7 @@ resource "aws_lambda_function" "aurora_failover" {
       DR_ALB_ARN                 = aws_lb.dr_alb.arn
     }
   }
-  
+
   tags = { Name = "aurora-failover-lambda" }
 }
 
