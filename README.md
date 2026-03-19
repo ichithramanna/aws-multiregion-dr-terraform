@@ -114,6 +114,52 @@ three-tier-aws-terraform/
 ```
 
 ---
+## CI/CD Pipeline
+
+This project uses a Jenkins declarative pipeline with 5 stages:
+
+| Stage | Runs On | Description |
+|---|---|---|
+| Checkout | All branches | Pull source code |
+| Terraform Validate | All branches | Syntax check + `fmt` — no live infra needed |
+| Terraform Plan | All branches | Plans PRIMARY + DR in one pass (aliased providers) |
+| Docker Build & Push | `main` only | Builds backend image, pushes to ECR (toggle with `DOCKER_PUSH` param) |
+| Terraform Apply | `main` only | Manual approval gate before applying to AWS |
+
+**Jenkins credentials required:**
+
+| ID | Type | Value |
+|---|---|---|
+| `aws-credentials` | AWS Credentials | IAM Access Key + Secret |
+| `db-password` | Secret text | Aurora DB master password |
+
+---
+
+## Remote State (S3 Backend)
+
+Terraform state is stored remotely in S3 with DynamoDB locking.  
+This ensures Jenkins, your laptop, and any teammate all share the same state.
+
+**One-time bootstrap (run once from your terminal):**
+
+```bash
+# Create S3 state bucket
+aws s3api create-bucket \
+  --bucket ichithramanna-tf-state \
+  --region us-east-1
+
+aws s3api put-bucket-versioning \
+  --bucket ichithramanna-tf-state \
+  --versioning-configuration Status=Enabled
+
+# Create DynamoDB lock table
+aws dynamodb create-table \
+  --table-name terraform-state-lock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --region us-east-1
+
 
 ## Deployment
 
