@@ -61,7 +61,7 @@ jobs:
   # as a comment on the pull request
   # Shows exactly what will change in AWS
   # ─────────────────────────────────────────────
-    plan:
+  plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
     needs: validate
