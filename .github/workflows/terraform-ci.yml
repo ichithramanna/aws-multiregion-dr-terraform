@@ -53,7 +53,7 @@ jobs:
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          soft_fail: true        # warn but don't block — change to false to enforce
+          soft_fail: true        #  change to false to enforce
 
   # ─────────────────────────────────────────────
   # JOB 3 — Terraform Plan + PR Comment
@@ -106,7 +106,7 @@ jobs:
             const truncated = plan.length > maxLen
               ? plan.substring(0, maxLen) + '\n\n... output truncated ...'
               : plan;
-            const output = `#### Terraform Plan 📖
+            const output = `#### Terraform Plan 
             \`\`\`terraform
             ${truncated}
             \`\`\`
@@ -117,7 +117,6 @@ jobs:
               repo: context.repo.repo,
               body: output
             });
-
   # ─────────────────────────────────────────────
   # JOB 4 — Docker Build Check (no push)
   # Verifies the backend Dockerfile builds
